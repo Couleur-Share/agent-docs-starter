@@ -13,28 +13,29 @@ const query = (...args) => {
   return { code: result.status, out: result.stdout, err: result.stderr };
 };
 
-test("find 输出路由、标题、核实日期与源文件路径，找不到时退出码为 1", () => {
+test("find 输出路由、标题、类型、状态与信任标记和源文件路径，找不到时退出码为 1", () => {
   const found = query("find", "配色");
   assert.equal(found.code, 0);
   const lines = found.out.trim().split(/\r?\n/);
-  assert.match(lines[0], /^\/guide\/colors\/  色彩规范  \[核实于 2026-10-01\]$/);
-  assert.match(found.out, /\[已被取代 → \/guide\/colors\/\]/);
+  assert.equal(lines[0], "/guide/colors/  色彩规范（Reference）  [人工核验，已过期 2026-10-01T10:00:00+08:00]");
+  assert.match(found.out, /旧色彩规范（Reference）  \[已弃用 → \/guide\/colors\/，未核验\]/);
   assert.ok(found.out.includes(path.join(fixtures, "guide", "colors.md")));
+  assert.match(query("find", "间距").out, /间距规范（Reference）  \[机器核验\]$/m);
   assert.equal(query("find", "不存在的词").code, 1);
 });
 
 test("list 列出全部页面", () => {
   const listed = query("list");
   assert.equal(listed.code, 0);
-  assert.equal(listed.out.match(/^\/\S*  /gm).length, 3);
+  assert.equal(listed.out.match(/^\/\S*  /gm).length, 4);
 });
 
 test("outline 列出章节行号、字数和历史字数", () => {
   const outline = query("outline", "guide/colors.md");
   assert.equal(outline.code, 0);
-  assert.match(outline.out, /^guide\/colors\.md  共 36 行/);
-  assert.match(outline.out, /^L10–21  ## 主色  \d+ 字$/m);
-  assert.match(outline.out, /^  L19–21  ### 主色用法/m);
+  assert.match(outline.out, /^guide\/colors\.md  共 42 行/);
+  assert.match(outline.out, /^L16–27  ## 主色  \d+ 字$/m);
+  assert.match(outline.out, /^  L25–27  ### 主色用法/m);
   assert.match(outline.out, /## 变更记录  \d+ 字（历史 \d+ 字）/);
 });
 
@@ -55,7 +56,7 @@ test("section 精确匹配优先，包含下级章节；有歧义时退出码为
   assert.equal(query("section", "色彩规范", "不存在").code, 1);
 });
 
-test("页面写法有误时给出提示", () => {
+test("页面或命令写错时给出提示", () => {
   assert.equal(query("outline", "没有这页").code, 1);
   assert.equal(query("unknown").code, 2);
 });

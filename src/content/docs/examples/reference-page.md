@@ -1,8 +1,12 @@
 ---
+type: Reference
 title: 参考页示例
-description: 演示参考页的写法，包括别名、核实日期、规则表和页内历史记录。
+description: 演示参考页的写法，包括核验记录、复核期限、规则表和页内历史记录。
+tags: [示例, 命名]
 aliases: [示例参考页, reference example]
-reviewed: 2026-11-07
+generated: { by: cursor-agent/claude-opus-5.5, at: 2026-11-07T13:46:35+08:00 }
+verified: { by: cursor-agent/claude-opus-5.5, at: 2026-11-07T13:46:35+08:00 }
+stale_after: 2027-05-06T13:46:35+08:00
 sidebar:
   order: 1
 ---
@@ -14,7 +18,7 @@ sidebar:
 | 对象 | 规则 | 示例 |
 | --- | --- | --- |
 | 页面文件 | 小写英文加连字符 | `color-palette.md` |
-| 分区目录 | 一个分区一个目录，目录里放 `index.md` 作为分区首页 | `brand/index.md` |
+| 分区目录 | 一个分区一个目录，目录里放 `index.mdx` 作为分区首页 | `brand/index.mdx` |
 | 日期时间 | `YYYY-MM-DD HH:mm`，北京时间 | 2026-11-07 08:30 |
 | 封面比例 | 宽高比写成 `宽:高` | 16:9 |
 

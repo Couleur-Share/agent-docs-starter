@@ -1,8 +1,14 @@
 ---
+type: Reference
 title: 色彩规范
 description: 主色与辅助色的取值和用法。
+tags: [品牌, 色彩]
 aliases: [配色, palette]
-reviewed: 2026-10-01
+generated: { by: human:alice, at: 2026-09-01T10:00:00+08:00 }
+verified:
+  - by: human:alice
+    at: 2026-09-01T10:00:00+08:00
+stale_after: 2026-10-01T10:00:00+08:00
 ---
 
 本页规定色值。

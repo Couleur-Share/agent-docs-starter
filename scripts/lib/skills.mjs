@@ -17,8 +17,13 @@ export function validateSite(site) {
     problems.push("slug 只能用小写字母、数字和连字符，最长 54 个字符，例如 design-docs");
   if (!line(site?.name)) problems.push("name 要写成一行，不能为空");
   if (!line(site?.scope)) problems.push("scope 要写成一行，不能为空");
+  if (!/^[A-Za-z0-9][\w.-]*$/.test(site?.owner ?? ""))
+    problems.push("owner 写你的标识（字母、数字、点、下划线或连字符），核验时记为 human:<owner>");
   if (!Array.isArray(site?.triggers) || !site.triggers.length || !site.triggers.every(line))
     problems.push("triggers 至少写一条任务场景，每条一行");
+  const days = Object.entries(site?.reviewDays ?? {});
+  if (!days.length || !days.every(([type, value]) => type.trim() && Number.isInteger(value) && value > 0))
+    problems.push("reviewDays 按页面类型写复核期限天数（正整数），例如 { \"Reference\": 180 }");
   if (JSON.stringify(site ?? {}).includes("TODO")) problems.push("还有 TODO 没有替换，先按 README 定制 agent-kit/site.json");
   return problems;
 }
@@ -30,12 +35,15 @@ export function templateValues(site, { repo = repoRoot, docsDir = defaultDocsDir
     NAME: site.name.trim(),
     SLUG: site.slug,
     SCOPE: site.scope.trim(),
+    OWNER: site.owner,
     TRIGGERS_INLINE: triggers.join("；"),
     TRIGGERS_LIST: triggers.map((trigger) => `- ${trigger}`).join("\n"),
+    REVIEW_DAYS: Object.entries(site.reviewDays).map(([type, days]) => `\`${type}\` ${days} 天`).join("、"),
     REPO_DIR: repo,
     DOCS_DIR: docsDir,
     QUERY: command("docs-query.mjs"),
     CHECK: command("check-content.mjs"),
+    STAMP: command("okf-stamp.mjs"),
     MARKER: `<!-- agent-docs-starter: ${repo} -->`,
   };
 }

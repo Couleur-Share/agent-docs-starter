@@ -15,7 +15,9 @@ const site = {
   slug: "design-docs",
   name: "设计文档站",
   scope: "品牌规范与设计系统",
+  owner: "alice",
   triggers: ["新建或修改界面时需要确定配色、字体与间距", "制作品牌物料"],
+  reviewDays: { Reference: 180, Playbook: 90 },
 };
 const siteFile = path.join(temp, "site.json");
 writeFileSync(siteFile, JSON.stringify(site));
@@ -33,22 +35,29 @@ test("模板自带的 site.json 还没定制，安装会被拒绝", () => {
   assert.match(refused.err, /TODO/);
 });
 
-test("validateSite 检查 slug、必填字段和单行", () => {
+test("validateSite 检查 slug、必填字段、单行、owner 与复核期限", () => {
   assert.deepEqual(validateSite(site), []);
   assert.match(validateSite({ ...site, slug: "Design Docs" }).join(), /slug/);
   assert.match(validateSite({ ...site, triggers: [] }).join(), /triggers/);
   assert.match(validateSite({ ...site, scope: "两行\n内容" }).join(), /scope/);
+  assert.match(validateSite({ ...site, owner: "human:alice" }).join(), /owner/);
+  assert.match(validateSite({ ...site, reviewDays: { Reference: 0 } }).join(), /reviewDays/);
+  assert.match(validateSite({ ...site, reviewDays: {} }).join(), /reviewDays/);
 });
 
-test("渲染结果填好路径与触发场景，name 与目录名一致", () => {
+test("渲染结果填好路径、触发场景、owner 与复核期限，name 与目录名一致", () => {
   const skills = buildSkills(templateValues(site));
   assert.deepEqual(skills.map((skill) => skill.name).sort(), ["design-docs-lookup", "design-docs-writeback"]);
   for (const skill of skills) {
-    assert.doesNotMatch(skill.content, /\{\{|\}\}/);
+    assert.doesNotMatch(skill.content, /\{\{[A-Z_]+\}\}/);
     assert.match(skill.content, new RegExp(`^name: ${skill.name}$`, "m"));
     assert.ok(skill.content.includes(path.join("src", "content", "docs")));
   }
   assert.match(skills.find((skill) => skill.name.endsWith("lookup")).content, /^- 制作品牌物料$/m);
+  const writeback = skills.find((skill) => skill.name.endsWith("writeback")).content;
+  assert.match(writeback, /`human:alice`/);
+  assert.match(writeback, /`Reference` 180 天、`Playbook` 90 天/);
+  assert.ok(writeback.includes(path.join("scripts", "okf-stamp.mjs")));
   assert.throws(() => render("{{UNKNOWN}}", {}), /未知占位符/);
   assert.throws(() => buildSkills(templateValues({ ...site, triggers: ["很长的场景".repeat(250)] })), /description/);
 });

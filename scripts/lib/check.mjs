@@ -1,18 +1,20 @@
-// 页面写法检查：页面头字段、取代链、核实日期、一级标题、重复标题与长行。
-import { STATUSES, normalizeRoute } from "./docs.mjs";
+// 页面写法检查，只管 OKF v0.2 校验器不管的部分：一句话摘要、正文一级标题、长行、取代链、
+// 保留文件名、重名和泄露秘密。type、时间格式、信任字段等 OKF 合规由 CI 里的 OKF 校验器负责。
+import { RESERVED_FILENAMES, normalizeRoute } from "./docs.mjs";
+import { scanSecrets } from "./secrets.mjs";
 
 const MAX_LINE = 500;
 
-export const localDate = (date = new Date()) =>
-  `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`;
+const secretMessage = (kind) =>
+  `疑似泄露${kind}：删掉具体值，只写存放位置；确认是误报，就在同一行加 secret-scan:allow`;
 
-const isDate = (value) =>
-  /^\d{4}-\d{2}-\d{2}$/.test(value) &&
-  !Number.isNaN(Date.parse(`${value}T00:00:00Z`)) &&
-  new Date(`${value}T00:00:00Z`).toISOString().startsWith(value);
+/** 扫描任意文件里的秘密，返回与 checkPages 相同格式的错误。 */
+export function secretErrors(file, text) {
+  return scanSecrets(text).map(({ line, kind }) => ({ file, line, message: secretMessage(kind) }));
+}
 
 /** 返回 { errors, warnings }，每条含 file、line、message。错误应阻断，提示只供参考。 */
-export function checkPages(pages, { today = localDate() } = {}) {
+export function checkPages(pages) {
   const errors = [];
   const warnings = [];
   const byRoute = new Map(pages.map((page) => [page.route, page]));
@@ -20,30 +22,25 @@ export function checkPages(pages, { today = localDate() } = {}) {
     list.push({ file: page.file ?? page.rel, line: typeof key === "number" ? key : (page.keyLines[key] ?? 1), message });
 
   for (const page of pages) {
-    if (!page.data) {
-      report(errors, page, 1, "缺少页面头：文件开头要有 --- 包围的 YAML");
-      continue;
-    }
-    if (!page.title) report(errors, page, "title", "缺少 title");
-    if (!page.description) report(errors, page, "description", "缺少 description：用一句完整的话说明本页回答什么问题");
-    else if (/[：:，,、；;]$/.test(page.description))
+    const name = page.rel.split("/").at(-1);
+    if (RESERVED_FILENAMES.includes(name))
+      report(errors, page, 1, `${name} 是 OKF 保留的文件名，不能写普通页面；首页和分区首页用 index.mdx`);
+    errors.push(...secretErrors(page.file ?? page.rel, page.source));
+    if (!page.data) continue;
+
+    if (/[：:，,、；;]$/.test(page.description))
       report(errors, page, "description", "description 要写成完整的一句话，不要以冒号、逗号或分号结尾");
 
-    if (!STATUSES.includes(page.status)) report(errors, page, "status", `status 只能是 ${STATUSES.join(" / ")}`);
-    if (page.status === "superseded") {
-      const target = page.supersededBy && byRoute.get(normalizeRoute(page.supersededBy));
-      if (!page.supersededBy) report(errors, page, "status", "status 为 superseded 时必须写 supersededBy，指向取代它的页面");
+    if (page.supersededBy) {
+      const target = byRoute.get(normalizeRoute(page.supersededBy));
+      if (page.status !== "deprecated")
+        report(errors, page, "supersededBy", "只有 status: deprecated 的页面才写 supersededBy");
       else if (!target) report(errors, page, "supersededBy", `supersededBy 指向的页面不存在：${page.supersededBy}`);
-      else if (target.status !== "current")
+      else if (target.status !== "stable")
         report(errors, page, "supersededBy", `supersededBy 必须指向现行页面，${target.rel} 的状态是 ${target.status}`);
-    } else if (page.supersededBy) {
-      report(errors, page, "supersededBy", "只有 status 为 superseded 的页面才写 supersededBy");
     }
-    if (page.reviewed && !isDate(page.reviewed)) report(errors, page, "reviewed", `reviewed 要写成 YYYY-MM-DD：${page.reviewed}`);
-    else if (page.reviewed > today) report(errors, page, "reviewed", `reviewed 不能晚于今天（${today}）`);
-
-    if (page.rel.startsWith("archive/") && page.route !== "/archive/" && page.status === "current")
-      report(warnings, page, "status", "archive/ 下的页面应标为 historical 或 superseded");
+    if (page.rel.startsWith("archive/") && page.route !== "/archive/" && page.status !== "deprecated")
+      report(warnings, page, "status", "archive/ 下的页面应标为 status: deprecated");
 
     for (const line of page.lines) {
       if (line.code) continue;

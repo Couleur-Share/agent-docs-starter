@@ -2,10 +2,10 @@
 // 按需查询文档源：找页面、列页面、看章节、取一节。只读，不改文件。
 import { existsSync } from "node:fs";
 import path from "node:path";
-import { defaultDocsDir, findPages, loadPages, resolvePage, sections, countChars } from "./lib/docs.mjs";
+import { defaultDocsDir, findPages, isStale, loadPages, resolvePage, sections, countChars } from "./lib/docs.mjs";
 
 const USAGE = `用法：
-  node scripts/docs-query.mjs find <关键词...>        按标题、别名、摘要、路径找页面，多个词须同时命中
+  node scripts/docs-query.mjs find <关键词...>        按标题、别名、标签、摘要、路径找页面，多个词须同时命中
   node scripts/docs-query.mjs list                    列出全部页面与摘要
   node scripts/docs-query.mjs outline <页面>          列出章节、行号与字数
   node scripts/docs-query.mjs section <页面> <章节>   只输出一节，默认省略 data-history 历史区
@@ -14,16 +14,19 @@ const USAGE = `用法：
   --docs <目录>   文档源目录，默认为本仓库的 src/content/docs
 <页面> 可写源文件相对路径、站内路由、页面标题或别名。`;
 
+const TRUST = { unverified: "未核验", machine: "机器核验", human: "人工核验" };
+
 function label(page) {
   const parts = [];
-  if (page.status === "superseded") parts.push(`已被取代 → ${page.supersededBy}`);
-  else if (page.status === "historical") parts.push("历史");
-  if (page.reviewed) parts.push(`核实于 ${page.reviewed}`);
-  return parts.length ? `  [${parts.join("，")}]` : "";
+  if (page.status === "deprecated") parts.push(page.supersededBy ? `已弃用 → ${page.supersededBy}` : "已弃用");
+  else if (page.status === "draft") parts.push("草稿");
+  parts.push(TRUST[page.trust]);
+  if (isStale(page)) parts.push(`已过期 ${page.staleAfter}`);
+  return `  [${parts.join("，")}]`;
 }
 
 function printPage(page) {
-  console.log(`${page.route}  ${page.title}${label(page)}`);
+  console.log(`${page.route}  ${page.title}${page.type ? `（${page.type}）` : ""}${label(page)}`);
   if (page.description) console.log(`  ${page.description}`);
   console.log(`  ${page.file}`);
 }

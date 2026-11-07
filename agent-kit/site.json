@@ -2,8 +2,14 @@
   "slug": "my-docs",
   "name": "TODO 站点名称，例如：设计文档站",
   "scope": "TODO 一句话写清本站是哪些事实的唯一来源，例如：品牌规范、设计系统、项目设计决策与交付流程",
+  "owner": "TODO 你的标识，你亲自核验时记为 human:<标识>，例如 alice",
   "triggers": [
     "TODO 需要先查本站的任务场景，例如：新建或修改界面时需要确定配色、字体、间距或组件样式",
     "TODO 例如：制作品牌物料、导出切图或交付设计稿"
-  ]
+  ],
+  "reviewDays": {
+    "Reference": 180,
+    "Playbook": 90,
+    "Decision": 365
+  }
 }

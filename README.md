@@ -1,21 +1,23 @@
 # agent-docs-starter
 
-一个给人看、也给 AI 查的文档站模板。网站部分由 [Nimbus](https://nimbus-docs.com/)（Cloudflare 基于 Astro 的文档框架）生成；本模板补上了让本机 AI “先查文档再动手、做完写回”的那一层：页面头约定、内容检查、查询脚本，以及可以一键安装的查阅与写回 Skill。
+一个给人看、也给 AI 查的文档站模板。网站部分由 [Nimbus](https://nimbus-docs.com/)（Cloudflare 基于 Astro 的文档框架）生成；页面头采用 [Open Knowledge Format（OKF）v0.2](https://github.com/GoogleCloudPlatform/open-knowledge-format/blob/main/SPEC.md)；本模板补上了让本机 AI “先查文档再动手、做完写回”的那一层：内容与秘密检查、查询与时间戳脚本，以及可以一键安装的查阅与写回 Skill。
 
 适合给某个领域建立唯一事实来源，例如设计规范、个人基础设施、团队流程，让 Cursor、Codex 等 AI 在任何项目里都按它办事。
 
-## 和 Nimbus 的分工
+## 各部分的来源
 
 | 部分 | 来源 |
 | --- | --- |
 | 网站、导航、搜索、每页的 Markdown 版本、`llms.txt` | Nimbus（`@cloudflare/nimbus-docs`） |
-| 页面头字段 `aliases`、`status`、`supersededBy`、`reviewed` | `src/content.config.ts` |
-| 内容检查：一句话摘要、取代链、核实日期、一级标题、重名、长行 | `scripts/check-content.mjs` |
-| 查询脚本：找页面、列章节、取一节 | `scripts/docs-query.mjs` |
+| 页面头格式：`type`、`status`、`generated`、`verified`、`stale_after`、`sources` 等 | OKF v0.2；本站扩展 `aliases`、`supersededBy`；字段声明在 `src/content.config.ts` |
+| OKF 合规检查 | CI 里的 [scaccogatto/okf-skills](https://github.com/scaccogatto/okf-skills) 校验器，锁定 `okf--v0.12.0`，严格模式 |
+| 本站写法检查：一句话摘要、正文一级标题、长行、取代链、保留文件名、重名、泄露秘密 | `scripts/check-content.mjs`，秘密扫描规则参考 [dotinfra](https://github.com/PiotrTopa/dotinfra) |
+| 查询脚本：找页面、列章节、取一节，标出状态、信任等级与是否过期 | `scripts/docs-query.mjs` |
+| 时间戳脚本：生成带时区的 `generated`、`verified` 与按页面类型推算的 `stale_after` | `scripts/okf-stamp.mjs` |
 | 查阅与写回 Skill、用户规则的模板 | `agent-kit/`，用 `scripts/install-skills.mjs` 安装 |
 | 给 AI 的仓库约定 | `AGENTS.md`（内容）；`AGENT.md`（Nimbus 提供，站点代码） |
 
-查询、检查和安装脚本只用 Node 内置模块，不装依赖也能运行。
+`scripts/` 下的脚本只用 Node 内置模块，不装依赖也能运行；`npm test` 不需要 Python。
 
 ## 环境要求
 
@@ -43,13 +45,13 @@
 
 4. **装依赖并自检**：`npm ci`、`npm test`、`npm run build`，三步都要通过。
 5. **和用户一起定制**：
-   - `agent-kit/site.json`：填写 `slug`、`name`、`scope`、`triggers`，去掉全部 `TODO`。`triggers` 写成具体的任务场景，AI 靠它判断什么时候该查本站。
+   - `agent-kit/site.json`：填写 `slug`、`name`、`scope`、`owner`、`triggers`，去掉全部 `TODO`；按需调整 `reviewDays`（各页面类型的复核期限天数）。`triggers` 写成具体的任务场景，AI 靠它判断什么时候该查本站；`owner` 是用户的标识，用户亲自核验的内容记为 `human:<owner>`。
    - `astro.config.ts`：改 `title`、`description`、`github`；部署时再改 `site`。
-   - `src/content/docs/`：按领域规划分区，一个分区一个目录，目录里放 `index.md` 并用 `sidebar.group.label` 写分区名。重写首页，把[维护约定](src/content/docs/guide/maintenance.md)里的“唯一维护位置”表换成本站的分类，删除 `examples/` 目录和 `archive/old-naming.md`。
+   - `src/content/docs/`：按领域规划分区，一个分区一个目录，目录里放 `index.mdx` 并用 `sidebar.group.label` 写分区名。重写首页，把[维护约定](src/content/docs/guide/maintenance.md)里的“唯一维护位置”表换成本站的分类，删除 `examples/` 目录和 `archive/old-naming.md`。
    - `AGENTS.md`：确认推送约定。
 6. **安装 Skill**：运行 `node scripts/install-skills.mjs`，再运行 `node scripts/install-skills.mjs --check`。如果用户想要用户规则，运行 `node scripts/install-skills.mjs --print user-rule`，请用户把输出粘贴到 Cursor 设置的 Rules 里。
 7. **验收**：
-   - `npm test` 与 `npm run build` 通过。
+   - `npm test` 与 `npm run build` 通过，推送后 GitHub Actions 里的 OKF 检查通过。
    - 在仓库之外的目录运行 `node <仓库>/scripts/docs-query.mjs find <关键词>`，能找到页面。
    - 新开一个其他项目的对话，问一个本站范围内的问题，AI 应该先调用 `<slug>-lookup`。
 8. **提交并推送**。
@@ -59,11 +61,14 @@
 ```sh
 npm ci
 npm run dev        # 开发服务器
-npm test           # 脚本单测 + 内容检查
+npm test           # 脚本单测 + 内容检查 + 秘密扫描
 npm run typecheck  # astro check
 npm run build      # 生产构建，含 Pagefind 搜索索引
 npm run preview    # 预览构建结果，站内搜索在这里才能用
+npm run docs:stamp -- verified Reference --by human:alice   # 生成核验时间与复核期限
 ```
+
+想在本机提前跑 OKF 校验：需要 Python 3.11+ 和 PyYAML，下载与 CI 同一提交的 [okf_validate.py](https://raw.githubusercontent.com/scaccogatto/okf-skills/49f8fb4987989b7a443ce278c6aa68ba0493b51f/skills/validate/scripts/okf_validate.py)，在仓库根目录运行 `python okf_validate.py src/content/docs --strict`。它只检查 `.md` 文件，`index.mdx` 首页不在检查范围内。
 
 ## 合并模板更新
 
@@ -77,8 +82,8 @@ git merge upstream/main
 ## 已知问题
 
 - Windows 上 `npx @cloudflare/nimbus-docs check` 的类型检查会误报 `.astro` 模块找不到（Nimbus 0.19.3），以 `npm run typecheck` 为准；GitHub Actions 在 Linux 上照常运行它。
-- `npm ci` 会提示 esbuild 的安装脚本没有获准运行（npm 11 的 `allowScripts`），不影响构建。
+- 网站给 AI 的 Markdown 接口只输出简单的页面头字段；`generated`、`verified`、`sources` 是嵌套结构，Nimbus 不输出，只在源文件里。
 
 ## 许可证
 
-MIT，见 [LICENSE](LICENSE)。由 `@cloudflare/create-nimbus-docs` 生成的文件版权归 Cloudflare, Inc.，同样以 MIT 许可发布。
+MIT，见 [LICENSE](LICENSE)。由 `@cloudflare/create-nimbus-docs` 生成的文件版权归 Cloudflare, Inc.，同样以 MIT 许可发布。OKF 规范（Apache-2.0）只以链接引用，没有复制进本仓库。

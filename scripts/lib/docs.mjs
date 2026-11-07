@@ -6,7 +6,9 @@ import { fileURLToPath } from "node:url";
 
 export const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..", "..");
 export const defaultDocsDir = path.join(repoRoot, "src", "content", "docs");
-export const STATUSES = ["current", "historical", "superseded"];
+// OKF v0.2 §5.4 的生命周期取值，缺省视为 stable；§3.1 保留的文件名不能用作普通页面。
+export const STATUSES = ["draft", "stable", "deprecated"];
+export const RESERVED_FILENAMES = ["index.md", "log.md"];
 
 const PAGE_EXT = /\.mdx?$/;
 
@@ -50,11 +52,12 @@ function splitFrontmatter(text) {
 
 /**
  * 只解析页面头的顶层键：标量、引号字符串、>- / | 块、[a, b] 与逐行 - a 列表。
- * 嵌套对象（如 sidebar）记为 {}，查询和检查用不到它们的内容。
+ * 嵌套对象（如 sidebar、verified）记为 {}，另在 rawBlocks 里留下原文，供推断信任等级。
  */
 function parseFrontmatter(yamlLines) {
   const data = {};
   const keyLines = {};
+  const rawBlocks = {};
   for (let i = 0; i < yamlLines.length; i++) {
     const match = /^([A-Za-z_][\w-]*):(\s.*)?$/.exec(yamlLines[i]);
     if (!match) continue;
@@ -62,8 +65,9 @@ function parseFrontmatter(yamlLines) {
     const block = [];
     while (i + 1 < yamlLines.length && /^(\s|-\s|-$|$)/.test(yamlLines[i + 1])) block.push(yamlLines[++i]);
     data[match[1]] = parseValue((match[2] ?? "").trim(), block);
+    rawBlocks[match[1]] = [match[2] ?? "", ...block].join("\n");
   }
-  return { data, keyLines };
+  return { data, keyLines, rawBlocks };
 }
 
 function parseValue(raw, block) {
@@ -166,25 +170,45 @@ function annotate(bodyLines, bodyStart) {
   });
 }
 
+/**
+ * OKF v0.2 §5.3 的信任等级：没有 verified 为 unverified，只有非 human: 核验者为 machine，
+ * 有 human:<id> 核验者为 human。verified 可以是单个 { by, at } 或它的列表，这里只看原文里的前缀。
+ */
+function trustOf(data, rawBlocks) {
+  if (data?.verified == null) return "unverified";
+  return /(^|[^\w])human:\S/.test(rawBlocks.verified ?? "") ? "human" : "machine";
+}
+
 /** 从源文本构造页面对象；rel 是相对文档源目录、用 / 分隔的路径。 */
 export function parsePage(rel, text) {
-  const { yaml, bodyLines, bodyStart } = splitFrontmatter(text);
-  const { data, keyLines } = yaml ? parseFrontmatter(yaml) : { data: null, keyLines: {} };
+  const source = text.replace(/^\uFEFF/, "").replace(/\r\n?/g, "\n");
+  const { yaml, bodyLines, bodyStart } = splitFrontmatter(source);
+  const { data, keyLines, rawBlocks } = yaml ? parseFrontmatter(yaml) : { data: null, keyLines: {}, rawBlocks: {} };
   const slug = typeof data?.slug === "string" ? data.slug : null;
   return {
     rel,
     route: slug === null ? routeOf(rel) : normalizeRoute(slug),
     data,
     keyLines,
+    type: asText(data?.type),
     title: asText(data?.title),
     description: asText(data?.description),
+    tags: asList(data?.tags),
     aliases: asList(data?.aliases),
-    status: asText(data?.status) || "current",
+    status: asText(data?.status) || "stable",
     supersededBy: asText(data?.supersededBy),
-    reviewed: asText(data?.reviewed),
+    staleAfter: asText(data?.stale_after),
+    trust: trustOf(data, rawBlocks),
+    source,
     totalLines: bodyStart - 1 + bodyLines.length,
     lines: annotate(bodyLines, bodyStart),
   };
+}
+
+/** OKF v0.2 §5.5：now >= stale_after 即为过期。stale_after 缺省或无法解析时不算过期。 */
+export function isStale(page, now = Date.now()) {
+  const due = Date.parse(page.staleAfter);
+  return Number.isFinite(due) && now >= due;
 }
 
 export function loadPages(docsDir = defaultDocsDir) {
@@ -242,27 +266,27 @@ export function resolvePage(pages, query, docsDir = defaultDocsDir) {
   );
 }
 
-/** 每个关键词都要命中标题、别名、摘要或路径之一；按命中位置打分，非现行页面排后。 */
+/** 每个关键词都要命中标题、别名、标签、摘要或路径之一；按命中位置打分，非 stable 页面排后。 */
 export function findPages(pages, keywords) {
   const terms = keywords.map((term) => term.trim().toLowerCase()).filter(Boolean);
   if (!terms.length) return [];
   return pages
     .map((page) => {
       const title = page.title.toLowerCase();
-      const aliases = page.aliases.map((alias) => alias.toLowerCase());
+      const names = [...page.aliases, ...page.tags].map((name) => name.toLowerCase());
       const description = page.description.toLowerCase();
       const where = `${page.rel.toLowerCase()} ${page.route}`;
       let score = 0;
       for (const term of terms) {
         const hit =
           (title.includes(term) ? 4 : 0) +
-          (aliases.some((alias) => alias.includes(term)) ? 3 : 0) +
+          (names.some((name) => name.includes(term)) ? 3 : 0) +
           (description.includes(term) ? 2 : 0) +
           (where.includes(term) ? 1 : 0);
         if (!hit) return null;
         score += hit;
       }
-      return { page, score: page.status === "current" ? score : score - 1 };
+      return { page, score: page.status === "stable" ? score : score - 1 };
     })
     .filter(Boolean)
     .sort((a, b) => b.score - a.score || a.page.rel.localeCompare(b.page.rel));

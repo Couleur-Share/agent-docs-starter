@@ -26,13 +26,13 @@ description: >-
 查询脚本只用 Node 内置模块，不需要安装依赖，在任何目录都能运行：
 
 ```text
-{{QUERY}} find <关键词>          # 按标题、别名、摘要、路径找页面
+{{QUERY}} find <关键词>          # 按标题、别名、标签、摘要、路径找页面
 {{QUERY}} list                   # 列出全部页面与摘要
 {{QUERY}} outline <页面>         # 章节、行号与字数
 {{QUERY}} section <页面> <章节>  # 只输出一节，默认省略历史记录
 ```
 
-`<页面>` 可写源文件相对路径、站内路由、页面标题或别名。
+`<页面>` 可写源文件相对路径、站内路由、页面标题或别名。结果的方括号里标出状态、信任等级和是否过期。
 
 1. 先用 `find`；没有命中，再在源文件目录里按关键词搜正文。
 2. 页面较长时先 `outline`，再用 `section` 取需要的章节，不整页读。
@@ -40,8 +40,12 @@ description: >-
 
 ## 信到什么程度
 
-- `status` 缺省或为 `current` 的页面是现行约定；`historical` 只当历史；`superseded` 已被 `supersededBy` 指向的页面取代，按新页面执行。
-- `reviewed` 是最后一次核实的日期，不代表实时状态；文件的编辑时间也不等于核实过。
+页面头遵循 [OKF v0.2](https://github.com/GoogleCloudPlatform/open-knowledge-format/blob/main/SPEC.md)：
+
+- `status`：缺省或 `stable` 是现行约定；`draft` 还没定稿，照着做之前先问用户；`deprecated` 只当历史，有 `supersededBy` 就按它指向的页面执行。
+- 信任等级看 `verified`：没有为“未核验”；只有工具或流程核验过为“机器核验”；有 `human:` 核验者为“人工核验”。
+- `stale_after` 已过（结果里标“已过期”）：内容可能过时，用之前先对照实际情况核实，并告诉用户。
+- `generated` 记录最后一次实质改动由谁、在何时完成；改过不等于核验过。
 - 文档与实际文件或用户最新说法冲突时，以实际为准，告诉用户，并用 {{SLUG}}-writeback 修正文档。
 
 ## 边界
