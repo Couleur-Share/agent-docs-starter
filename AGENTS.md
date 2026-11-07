@@ -25,7 +25,7 @@
 
 - 改了内容：`npm test`（内容检查、秘密扫描和脚本单测）。
 - 改了站点代码或依赖：再跑 `npm run typecheck` 和 `npm run build`。Windows 上 `npx @cloudflare/nimbus-docs check` 的类型检查会误报 `.astro` 模块找不到，以 `npm run typecheck` 为准。
-- OKF 合规由 CI 里的 OKF 校验器在严格模式下检查（任何警告都算失败）；本机想提前跑，见 README 的「本地开发」。
+- OKF 合规由 CI 里的 OKF 校验器检查：缺页面头、YAML 无效或缺 `type` 会让 CI 失败；缺推荐字段、时间格式、核验者写法等问题只作为警告列在日志里，不阻断，但仍应按上面的硬约束修正。本机想提前跑，见 README 的「本地开发」。
 - Nimbus 的 `lint` 只检查 `.mdx`；`.md` 页面由 `npm test` 里的内容检查负责。
 
 ## 提交

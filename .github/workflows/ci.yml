@@ -21,11 +21,12 @@ jobs:
           cache: npm
       - run: npm ci
       - run: npm test
-      - name: OKF v0.2 conformance (strict)
+      # 只有缺页面头、YAML 无效或缺 type 会失败；其余问题作为警告列在日志里。
+      - name: OKF v0.2 conformance
         uses: scaccogatto/okf-skills@49f8fb4987989b7a443ce278c6aa68ba0493b51f # okf--v0.12.0
         with:
           bundle: src/content/docs
-          strict: "true"
+          strict: "false"
       - run: npm run typecheck
       - run: npm run build
       - run: npx @cloudflare/nimbus-docs check

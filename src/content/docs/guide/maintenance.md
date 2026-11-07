@@ -4,9 +4,9 @@ title: 维护约定
 description: 本站的唯一维护位置、OKF 页面头字段、文件命名、写作规则、历史记录写法与写回流程。
 tags: [约定, OKF]
 aliases: [写作规范, 文档约定]
-generated: { by: cursor-agent/claude-opus-5.5, at: 2026-11-07T13:46:35+08:00 }
-verified: { by: cursor-agent/claude-opus-5.5, at: 2026-11-07T13:46:35+08:00 }
-stale_after: 2027-05-06T13:46:35+08:00
+generated: { by: cursor-agent/claude-opus-5.5, at: 2026-11-07T13:57:41+08:00 }
+verified: { by: cursor-agent/claude-opus-5.5, at: 2026-11-07T13:57:41+08:00 }
+stale_after: 2027-05-06T13:57:41+08:00
 sources:
   - id: okf-spec
     resource: https://github.com/GoogleCloudPlatform/open-knowledge-format/blob/0b87c52c6ef999286c745e19998fdfcd03d5dbee/SPEC.md
@@ -113,8 +113,10 @@ node scripts/okf-stamp.mjs generated --by cursor-agent/claude-opus-5.5
 | 检查 | 在哪里运行 | 管什么 |
 | --- | --- | --- |
 | `npm test` | 本机和 CI | 一句话摘要、正文一级标题、长行、取代链、保留文件名、重名、泄露秘密 |
-| OKF 校验器 | CI，严格模式 | OKF v0.2 合规：`type`、推荐字段、时间格式、核验者写法、来源与脚注 |
+| OKF 校验器 | CI | OKF v0.2 合规：缺页面头或 `type` 时失败；推荐字段、时间格式、核验者写法、来源与脚注的问题列为警告 |
 | `npm run build` | 本机和 CI | 页面头的键名与类型，链接与组件 |
+
+CI 日志里的 OKF 警告不会让检查失败，但仍要按本页约定修正。
 
 ## 写回流程
 

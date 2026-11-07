@@ -10,7 +10,7 @@
 | --- | --- |
 | 网站、导航、搜索、每页的 Markdown 版本、`llms.txt` | Nimbus（`@cloudflare/nimbus-docs`） |
 | 页面头格式：`type`、`status`、`generated`、`verified`、`stale_after`、`sources` 等 | OKF v0.2；本站扩展 `aliases`、`supersededBy`；字段声明在 `src/content.config.ts` |
-| OKF 合规检查 | CI 里的 [scaccogatto/okf-skills](https://github.com/scaccogatto/okf-skills) 校验器，锁定 `okf--v0.12.0`，严格模式 |
+| OKF 合规检查 | CI 里的 [scaccogatto/okf-skills](https://github.com/scaccogatto/okf-skills) 校验器，锁定 `okf--v0.12.0`；缺页面头或缺 `type` 时失败，其余问题列为警告 |
 | 本站写法检查：一句话摘要、正文一级标题、长行、取代链、保留文件名、重名、泄露秘密 | `scripts/check-content.mjs`，秘密扫描规则参考 [dotinfra](https://github.com/PiotrTopa/dotinfra) |
 | 查询脚本：找页面、列章节、取一节，标出状态、信任等级与是否过期 | `scripts/docs-query.mjs` |
 | 时间戳脚本：生成带时区的 `generated`、`verified` 与按页面类型推算的 `stale_after` | `scripts/okf-stamp.mjs` |
@@ -68,7 +68,7 @@ npm run preview    # 预览构建结果，站内搜索在这里才能用
 npm run docs:stamp -- verified Reference --by human:alice   # 生成核验时间与复核期限
 ```
 
-想在本机提前跑 OKF 校验：需要 Python 3.11+ 和 PyYAML，下载与 CI 同一提交的 [okf_validate.py](https://raw.githubusercontent.com/scaccogatto/okf-skills/49f8fb4987989b7a443ce278c6aa68ba0493b51f/skills/validate/scripts/okf_validate.py)，在仓库根目录运行 `python okf_validate.py src/content/docs --strict`。它只检查 `.md` 文件，`index.mdx` 首页不在检查范围内。
+想在本机提前跑 OKF 校验：需要 Python 3.11+ 和 PyYAML，下载与 CI 同一提交的 [okf_validate.py](https://raw.githubusercontent.com/scaccogatto/okf-skills/49f8fb4987989b7a443ce278c6aa68ba0493b51f/skills/validate/scripts/okf_validate.py)，在仓库根目录运行 `python okf_validate.py src/content/docs`，与 CI 一样只在硬错误时失败；加 `--strict` 则把警告也算作失败。它只检查 `.md` 文件，`index.mdx` 首页不在检查范围内。
 
 ## 合并模板更新
 
