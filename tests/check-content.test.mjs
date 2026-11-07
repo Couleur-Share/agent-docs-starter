@@ -70,7 +70,7 @@ test("页面和片段里疑似泄露的秘密算错误，放行标记可以排�
   assert.equal(errors[0].line, 7);
   assert.match(errors[0].message, /疑似泄露密码/);
   assert.deepEqual(
-    secretErrors("partials/x.md", `-----BEGIN ${"OPENSSH PRIVATE"} KEY-----`).map((item) => [item.file, item.line]),
+    secretErrors("partials/x.md", `-----BEGIN ${"OPENSSH PRIVATE"} KEY-----\n${"QUJD".repeat(12)}`).map((item) => [item.file, item.line]),
     [["partials/x.md", 1]],
   );
 });
