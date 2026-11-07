@@ -5,7 +5,7 @@ import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync
 import os from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
-import { buildSkills, kitDir, render, templateValues, validateSite } from "../scripts/lib/skills.mjs";
+import { buildSkills, render, templateValues, validateSite } from "../scripts/lib/skills.mjs";
 
 const script = path.join(path.dirname(fileURLToPath(import.meta.url)), "..", "scripts", "install-skills.mjs");
 const temp = mkdtempSync(path.join(os.tmpdir(), "agent-docs-starter-"));
@@ -27,10 +27,11 @@ const cli = (...args) => {
   return { code: result.status, out: result.stdout, err: result.stderr };
 };
 
-test("模板自带的 site.json 还没定制，安装会被拒绝", () => {
-  const template = JSON.parse(readFileSync(path.join(kitDir, "site.json"), "utf8"));
-  assert.match(validateSite(template).join("\n"), /TODO/);
-  const refused = cli("--dry-run");
+test("site.json 里还有 TODO 时拒绝安装", () => {
+  const todoFile = path.join(temp, "site-todo.json");
+  writeFileSync(todoFile, JSON.stringify({ ...site, name: "TODO 站点名称" }));
+  assert.match(validateSite(JSON.parse(readFileSync(todoFile, "utf8"))).join("\n"), /TODO/);
+  const refused = cli("--dry-run", "--site", todoFile);
   assert.equal(refused.code, 1);
   assert.match(refused.err, /TODO/);
 });

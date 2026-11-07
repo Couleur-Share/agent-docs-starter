@@ -1,6 +1,8 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { spawnSync } from "node:child_process";
+import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import os from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { actorProblem, isoWithOffset, stampLines } from "../scripts/lib/stamp.mjs";
@@ -37,9 +39,15 @@ test("作者与核验者遵循 OKF 的 actor 写法", () => {
   assert.throws(() => stampLines({ kind: "verified", by: "Human:alice", type: "Reference" }), /小写/);
 });
 
-test("命令行输出可以直接粘贴的行，期限读 agent-kit/site.json", () => {
+test("命令行输出可以直接粘贴的行，期限读 site.json 的 reviewDays", () => {
+  const dir = mkdtempSync(path.join(os.tmpdir(), "okf-stamp-"));
+  const siteFile = path.join(dir, "site.json");
+  writeFileSync(siteFile, JSON.stringify({ reviewDays: { Reference: 180 } }));
   const run = (...args) =>
-    spawnSync(process.execPath, [script, ...args], { encoding: "utf8", env: { ...process.env, TZ: "Asia/Shanghai" } });
+    spawnSync(process.execPath, [script, ...args, "--site", siteFile], {
+      encoding: "utf8",
+      env: { ...process.env, TZ: "Asia/Shanghai" },
+    });
   const verified = run("verified", "Reference", "--by", "human:alice", "--at", "2026-11-07T13:46:35+08:00");
   assert.equal(verified.status, 0, verified.stderr);
   assert.equal(verified.stdout.trim(), "verified: { by: human:alice, at: 2026-11-07T13:46:35+08:00 }\nstale_after: 2027-05-06T13:46:35+08:00");
@@ -49,4 +57,5 @@ test("命令行输出可以直接粘贴的行，期限读 agent-kit/site.json", 
   assert.equal(run("verified", "Reference", "--by", "human:alice", "--days", "0").status, 2);
   assert.equal(run("verified", "Reference", "--by", "Human:alice").status, 2);
   assert.equal(run("verified").status, 2);
+  rmSync(dir, { recursive: true, force: true });
 });

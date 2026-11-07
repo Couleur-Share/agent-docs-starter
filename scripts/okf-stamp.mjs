@@ -11,21 +11,24 @@ const USAGE = `用法：
 选项：
   --days <天数>   覆盖该类型的复核期限
   --at <时间>     使用指定时间（ISO 8601，带时区偏移），缺省为现在
+  --site <文件>   代替 agent-kit/site.json（测试用）
 <核验者> 与 <作者> 写成 human:<标识>、process:<名称> 或 <工具>/<版本>。`;
+
+const VALUE_OPTIONS = ["--by", "--days", "--at", "--site"];
 
 function main(argv) {
   const option = (name) => {
     const index = argv.indexOf(name);
     return index === -1 ? undefined : argv[index + 1];
   };
-  const positional = argv.filter((arg, i) => !arg.startsWith("--") && !["--by", "--days", "--at"].includes(argv[i - 1]));
+  const positional = argv.filter((arg, i) => !arg.startsWith("--") && !VALUE_OPTIONS.includes(argv[i - 1]));
   const [kind, type] = positional;
   if (argv.includes("--help") || argv.includes("-h") || !kind || (kind === "verified" && !type)) {
     console.log(USAGE);
     return kind ? 2 : 0;
   }
 
-  const siteFile = path.join(repoRoot, "agent-kit", "site.json");
+  const siteFile = path.resolve(option("--site") ?? path.join(repoRoot, "agent-kit", "site.json"));
   const reviewDays = existsSync(siteFile) ? (JSON.parse(readFileSync(siteFile, "utf8")).reviewDays ?? {}) : {};
   const daysText = option("--days");
   const days = daysText === undefined ? undefined : Number(daysText);
