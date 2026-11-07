@@ -1,4 +1,4 @@
-// 渲染 agent-kit 里的 Skill 与用户规则模板，安装并核对本机副本。
+// 渲染 agent-kit 里的 Skill 与全局规则模板，安装并核对本机副本。
 import { existsSync, mkdirSync, readdirSync, readFileSync, writeFileSync } from "node:fs";
 import path from "node:path";
 import { defaultDocsDir, parsePage, repoRoot } from "./docs.mjs";
@@ -92,6 +92,44 @@ export function installSkills(skills, dirs, { dryRun = false } = {}) {
     }
   }
   return files;
+}
+
+/** 全局规则：Cursor 的 User Rule 与 Codex 的 ~/.codex/AGENTS.md 共用这段文字，内容与本机路径无关。 */
+export function renderUserRule(values) {
+  return render(readFileSync(path.join(kitDir, "user-rule.md"), "utf8"), values).trim();
+}
+
+// ~/.codex/AGENTS.md 里用成对标记圈出本站的段落，重装只替换这一段，不动文件里的其他内容。
+const BLOCK = /<!-- agent-docs-starter begin slug=([a-z0-9-]+) repo=(.+?) -->\n[\s\S]*?\n<!-- agent-docs-starter end slug=\1 -->\n?/g;
+
+export const codexAgentsFile = (home) => path.join(home, ".codex", "AGENTS.md");
+
+export function codexRuleBlock(values, rule) {
+  return `<!-- agent-docs-starter begin slug=${values.SLUG} repo=${values.REPO_DIR} -->\n${rule}\n<!-- agent-docs-starter end slug=${values.SLUG} -->\n`;
+}
+
+export function upsertCodexRule(text, values, rule) {
+  const current = text.replace(/\r\n/g, "\n");
+  const block = codexRuleBlock(values, rule);
+  let replaced = false;
+  const next = current.replace(BLOCK, (match, slug) => {
+    if (slug !== values.SLUG) return match;
+    replaced = true;
+    return block;
+  });
+  if (replaced) return next;
+  return current.trim() ? `${current.replace(/\n*$/, "")}\n\n${block}` : block;
+}
+
+/** 本站段落缺失或与模板不一致，以及同一仓库留下的其他 slug 段落，都算问题。 */
+export function codexRuleProblems(text, values, rule) {
+  const current = text.replace(/\r\n/g, "\n");
+  const problems = [];
+  if (!current.includes(codexRuleBlock(values, rule))) problems.push(`缺少或与模板不一致：Codex 全局规则中的 ${values.SLUG} 段落`);
+  for (const [, slug, repo] of current.matchAll(BLOCK)) {
+    if (repo === values.REPO_DIR && slug !== values.SLUG) problems.push(`旧段落：Codex 全局规则中的 ${slug}`);
+  }
+  return problems;
 }
 
 /** 核对已安装副本；带同一仓库标记、但不在当前清单里的 Skill 视为改名留下的旧副本。 */

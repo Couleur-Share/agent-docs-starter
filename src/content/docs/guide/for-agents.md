@@ -4,14 +4,14 @@ title: AI 查阅入口
 description: 本机 AI 怎样发现、查阅和写回本站，以及网站提供给远程 AI 的接口。
 tags: [AI, Skill]
 aliases: [Skill, 查询脚本, llms.txt]
-generated: { by: cursor-agent/claude-opus-5.5, at: 2026-11-07T13:46:35+08:00 }
-verified: { by: cursor-agent/claude-opus-5.5, at: 2026-11-07T13:46:35+08:00 }
-stale_after: 2027-05-06T13:46:35+08:00
+generated: { by: cursor-agent/claude-opus-5.5, at: 2026-11-07T14:17:50+08:00 }
+verified: { by: cursor-agent/claude-opus-5.5, at: 2026-11-07T14:17:50+08:00 }
+stale_after: 2027-05-06T14:17:50+08:00
 sidebar:
   order: 2
 ---
 
-本机 AI 读的是源文件，不是网站。让它稳定地先查再做、做完写回，靠三样东西：查阅 Skill、写回 Skill，以及可选的用户规则。
+本机 AI 读的是源文件，不是网站。让它稳定地先查再做、做完写回，靠三样东西：查阅 Skill、写回 Skill 和全局规则；多台电脑之间靠 Git 同步。
 
 ## 本机 Skill
 
@@ -59,15 +59,24 @@ node scripts/docs-query.mjs section /guide/maintenance/ 写作规则
 node scripts/okf-stamp.mjs verified Playbook --by cursor-agent/claude-opus-5.5
 ```
 
-## 用户规则（可选）
+## 全局规则
 
-Skill 靠描述触发，偶尔会被跳过。想更稳，可以再加一条 Cursor User Rule：
+只装 Skill 时，AI 靠 Skill 的描述判断要不要查本站，偶尔会跳过。全局规则让它在任何项目里都先查后做、做完写回：
 
-```sh
-node scripts/install-skills.mjs --print user-rule
-```
+- Codex：`install-skills.mjs` 自动写进 `~/.codex/AGENTS.md`（带标记的一段），`--check` 一并核对。
+- Cursor：账号级 User Rule，由 AI 用 Cursor 的规则工具添加，没有这个工具时手动粘贴，步骤见 README 的「安装 Skill 与全局规则」。规则文字用 `node scripts/install-skills.mjs --print user-rule` 查看。
 
-把输出粘贴到 Cursor 设置的 Rules 里。User Rules 跟着 Cursor 账号同步到所有电脑，所以生成的规则末尾带有“本机没有上述目录时忽略本条”。
+规则只提到 Skill 名、不写本机路径，同一账号的所有电脑共用一条；没有装 Skill 的电脑会忽略它。
+
+## 多台电脑同步
+
+每台电脑各有一份文档仓库的克隆，靠 Git 同步：
+
+- 查阅 Skill 在每次对话第一次查阅前运行 `git pull --ff-only`。
+- 写回 Skill 改之前先拉取，提交后运行 `git pull --rebase` 再 `git push`。
+- 有冲突、离线或推送失败时，AI 会停下说明，不会强推。
+
+新电脑接入见 README 的「在另一台电脑上接入」。
 
 ## 网站上的 AI 接口
 

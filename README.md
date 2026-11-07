@@ -14,7 +14,8 @@
 | 本站写法检查：一句话摘要、正文一级标题、长行、取代链、保留文件名、重名、泄露秘密 | `scripts/check-content.mjs`，秘密扫描规则参考 [dotinfra](https://github.com/PiotrTopa/dotinfra) |
 | 查询脚本：找页面、列章节、取一节，标出状态、信任等级与是否过期 | `scripts/docs-query.mjs` |
 | 时间戳脚本：生成带时区的 `generated`、`verified` 与按页面类型推算的 `stale_after` | `scripts/okf-stamp.mjs` |
-| 查阅与写回 Skill、用户规则的模板 | `agent-kit/`，用 `scripts/install-skills.mjs` 安装 |
+| 查阅与写回 Skill、全局规则的模板 | `agent-kit/`，用 `scripts/install-skills.mjs` 安装（Codex 的全局规则一并写入，Cursor 的按下文添加） |
+| 多台电脑同步 | Git：查阅前自动拉取，写回后自动提交并推送 |
 | 给 AI 的仓库约定 | `AGENTS.md`（内容）；`AGENT.md`（Nimbus 提供，站点代码） |
 
 `scripts/` 下的脚本只用 Node 内置模块，不装依赖也能运行；`npm test` 不需要 Python。
@@ -48,13 +49,35 @@
    - `agent-kit/site.json`：填写 `slug`、`name`、`scope`、`owner`、`triggers`，去掉全部 `TODO`；按需调整 `reviewDays`（各页面类型的复核期限天数）。`triggers` 写成具体的任务场景，AI 靠它判断什么时候该查本站；`owner` 是用户的标识，用户亲自核验的内容记为 `human:<owner>`。
    - `astro.config.ts`：改 `title`、`description`、`github`；部署时再改 `site`。
    - `src/content/docs/`：按领域规划分区，一个分区一个目录，目录里放 `index.mdx` 并用 `sidebar.group.label` 写分区名。重写首页，把[维护约定](src/content/docs/guide/maintenance.md)里的“唯一维护位置”表换成本站的分类，删除 `examples/` 目录和 `archive/old-naming.md`。
-   - `AGENTS.md`：确认推送约定。
-6. **安装 Skill**：运行 `node scripts/install-skills.mjs`，再运行 `node scripts/install-skills.mjs --check`。如果用户想要用户规则，运行 `node scripts/install-skills.mjs --print user-rule`，请用户把输出粘贴到 Cursor 设置的 Rules 里。
+   - `AGENTS.md`：推送约定默认是“提交后直接推送”，多台电脑靠它同步；用户想先问再推时改那一条。
+6. **安装 Skill 与全局规则**：按下面的「安装 Skill 与全局规则」执行。
 7. **验收**：
    - `npm test` 与 `npm run build` 通过，推送后 GitHub Actions 里的 OKF 检查通过。
    - 在仓库之外的目录运行 `node <仓库>/scripts/docs-query.mjs find <关键词>`，能找到页面。
    - 新开一个其他项目的对话，问一个本站范围内的问题，AI 应该先调用 `<slug>-lookup`。
-8. **提交并推送**。
+8. **提交并推送**。以后 AI 写回时会自动提交并推送，其他电脑查阅前会自动拉取。
+
+## 安装 Skill 与全局规则
+
+每台要查、要写这份文档的电脑都做一次：
+
+1. 运行 `node scripts/install-skills.mjs`，再运行 `node scripts/install-skills.mjs --check`。它把查阅、写回两个 Skill 装进 `~/.cursor/skills` 和 `~/.codex/skills`，并在 `~/.codex/AGENTS.md` 里写入本站的全局规则（带标记的一段，重装只替换这一段）。
+2. 添加 Cursor 的全局规则。它是账号级的 User Rule，多台电脑登录同一账号时，通常只需要添加一次：
+   - 运行 `node scripts/install-skills.mjs --print user-rule`，取得规则文字，先给用户过目。
+   - 用 Cursor 的规则工具（`cursor_dialog`，`item: "rule"`、`scope: "user"`）先 `list`。已有提到 `<slug>-lookup` 的规则时，内容一致就跳过，不一致就 `update`；没有时 `add`，标题写“<站点名称>：先查后做、做完写回”。
+   - 当前 Cursor 没有这个工具时，请用户把规则文字粘贴到 Cursor 设置的 Rules 里。
+3. 新开一个对话，Skill 和规则才会生效。
+
+全局规则只提到 Skill 名，不写本机路径；路径在各台电脑自己安装的 Skill 里。本机没有装 Skill 的电脑会忽略这条规则。
+
+## 在另一台电脑上接入
+
+文档仓库已经建好，要在另一台电脑上也能查、能写回时，对那台电脑的 AI 说“按 <账号>/<仓库名> 仓库 README 的「在另一台电脑上接入」接入”，AI 按下面执行：
+
+1. 确认环境：`node --version`（至少 22.12）、`git --version`、`gh auth status`。
+2. 克隆：`gh repo clone <账号>/<仓库名> <目录>`。只查阅和写回不需要 `npm ci`；要在本机预览网站或运行 `npm test` 时再装依赖。
+3. 按上面的「安装 Skill 与全局规则」执行。Cursor 的规则多半已随账号同步过来，`list` 确认即可。
+4. 验收：在仓库之外的目录运行 `node <目录>/scripts/docs-query.mjs list` 能列出页面；新开一个其他项目的对话，问一个本站范围内的问题，AI 应该先调用 `<slug>-lookup`。
 
 ## 本地开发
 

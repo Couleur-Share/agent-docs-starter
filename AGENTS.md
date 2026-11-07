@@ -28,12 +28,14 @@
 - OKF 合规由 CI 里的 OKF 校验器检查：缺页面头、YAML 无效或缺 `type` 会让 CI 失败；缺推荐字段、时间格式、核验者写法等问题只作为警告列在日志里，不阻断，但仍应按上面的硬约束修正。本机想提前跑，见 README 的「本地开发」。
 - Nimbus 的 `lint` 只检查 `.mdx`；`.md` 页面由 `npm test` 里的内容检查负责。
 
-## 提交
+## 提交与同步
 
+- 本仓库可能同时在几台电脑上使用，靠 Git 同步。开始修改前先 `git pull --ff-only`。
 - 只暂存本次改动的文件（`git add -- <文件>`）；不提交 `dist/`、`.astro/`、`node_modules/`。
-- 推送约定：文档改动提交后先问用户再推送。用户给过常驻授权的话，把这一条改成“提交后直接推送”。
+- 推送约定：文档改动提交后直接推送，先 `git pull --rebase` 再 `git push`。有冲突或推送失败时停下告诉用户，不要强推。想改成先问再推，就改这一条。
 
 ## AI 入口
 
-- Skill 模板在 `agent-kit/skills/`，用户规则模板在 `agent-kit/user-rule.md`，站点信息（含 `owner` 和各类型的复核期限 `reviewDays`）在 `agent-kit/site.json`。改了其中任何一处，或者仓库换了位置，都要运行 `node scripts/install-skills.mjs` 重新安装，再用 `--check` 核对。
+- Skill 模板在 `agent-kit/skills/`，全局规则模板在 `agent-kit/user-rule.md`，站点信息（含 `owner` 和各类型的复核期限 `reviewDays`）在 `agent-kit/site.json`。改了其中任何一处，或者仓库换了位置，都要运行 `node scripts/install-skills.mjs` 重新安装，再用 `--check` 核对。
+- 全局规则让 AI 在任何项目里都先查后做、做完写回，内容与本机路径无关。Codex 的那份由安装脚本写进 `~/.codex/AGENTS.md`；Cursor 的那份是账号级 User Rule，按 README 的「安装 Skill 与全局规则」添加。
 - 不要把 Skill 模板放进仓库根目录的 `skills/`：Nimbus 会把那里的 Skill 公开发布到站点上。

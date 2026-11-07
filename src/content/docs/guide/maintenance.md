@@ -4,9 +4,9 @@ title: 维护约定
 description: 本站的唯一维护位置、OKF 页面头字段、文件命名、写作规则、历史记录写法与写回流程。
 tags: [约定, OKF]
 aliases: [写作规范, 文档约定]
-generated: { by: cursor-agent/claude-opus-5.5, at: 2026-11-07T13:57:41+08:00 }
-verified: { by: cursor-agent/claude-opus-5.5, at: 2026-11-07T13:57:41+08:00 }
-stale_after: 2027-05-06T13:57:41+08:00
+generated: { by: cursor-agent/claude-opus-5.5, at: 2026-11-07T14:17:50+08:00 }
+verified: { by: cursor-agent/claude-opus-5.5, at: 2026-11-07T14:17:50+08:00 }
+stale_after: 2027-05-06T14:17:50+08:00
 sources:
   - id: okf-spec
     resource: https://github.com/GoogleCloudPlatform/open-knowledge-format/blob/0b87c52c6ef999286c745e19998fdfcd03d5dbee/SPEC.md
@@ -120,10 +120,10 @@ CI 日志里的 OKF 警告不会让检查失败，但仍要按本页约定修正
 
 ## 写回流程
 
-1. 用 `find` 找到这件事唯一的维护页面。已有页面就改它，不另起重复页面。
+1. 先 `git pull --ff-only` 拿到其他电脑写回的内容，再用 `find` 找到这件事唯一的维护页面。已有页面就改它，不另起重复页面。
 2. 把正文改成现状，旧内容按上一节处理。
 3. 实质改动后更新 `generated`；核实过再更新 `verified` 和 `stale_after`。
 4. 运行 `npm test`，有错误就修到通过。
-5. 只暂存本次改动的文件并提交。
+5. 只暂存本次改动的文件并提交，然后 `git pull --rebase` 再 `git push`，其他电脑才能看到。
 
 [^okf-spec]: Open Knowledge Format v0.2 规范

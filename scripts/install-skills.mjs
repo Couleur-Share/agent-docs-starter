@@ -1,22 +1,26 @@
 #!/usr/bin/env node
-// 按 agent-kit/site.json 渲染 Skill 模板，安装到本机 Cursor 与 Codex 的个人 Skill 目录，或核对已装副本。
-import { readFileSync } from "node:fs";
+// 按 agent-kit/site.json 渲染 Skill 模板与全局规则，安装到本机 Cursor 与 Codex，或核对已装副本。
+// Cursor 的 User Rule 只能在 Cursor 里添加（见 README），这里负责 Skill 和 Codex 的 ~/.codex/AGENTS.md。
+import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import {
   buildSkills,
   checkSkills,
+  codexAgentsFile,
+  codexRuleProblems,
   installSkills,
   kitDir,
-  render,
+  renderUserRule,
   targetDirs,
   templateValues,
+  upsertCodexRule,
   validateSite,
 } from "./lib/skills.mjs";
 
 const USAGE = `用法：
-  node scripts/install-skills.mjs                 安装到本机已有的 ~/.cursor 与 ~/.codex
-  node scripts/install-skills.mjs --check         核对已安装的副本与模板一致
+  node scripts/install-skills.mjs                 安装 Skill 到本机已有的 ~/.cursor 与 ~/.codex，并写入 Codex 全局规则
+  node scripts/install-skills.mjs --check         核对已安装的 Skill 与 Codex 全局规则和模板一致
   node scripts/install-skills.mjs --dry-run       只显示会写到哪里
   node scripts/install-skills.mjs --print <名称>  输出渲染结果：lookup、writeback 或 user-rule
 选项：
@@ -43,10 +47,11 @@ function main(argv) {
   }
   const values = templateValues(site);
   const skills = buildSkills(values);
+  const rule = renderUserRule(values);
 
   const printName = option("--print");
   if (printName === "user-rule") {
-    process.stdout.write(render(readFileSync(path.join(kitDir, "user-rule.md"), "utf8"), values));
+    console.log(rule);
     return 0;
   }
   if (printName) {
@@ -67,21 +72,32 @@ function main(argv) {
     console.error("本机没有 ~/.cursor 或 ~/.codex；用 --target 指定安装目标。");
     return 1;
   }
+  const agentsFile = dirs.some(({ name }) => name === "codex") ? codexAgentsFile(home) : null;
+  const agentsText = agentsFile && existsSync(agentsFile) ? readFileSync(agentsFile, "utf8") : "";
 
   if (argv.includes("--check")) {
-    const issues = checkSkills(skills, dirs, values.MARKER);
+    const issues = [...checkSkills(skills, dirs, values.MARKER), ...(agentsFile ? codexRuleProblems(agentsText, values, rule) : [])];
     if (issues.length) {
       console.error(issues.join("\n"));
-      console.error("运行 node scripts/install-skills.mjs 重新安装；旧副本确认不再使用后手动删除。");
+      console.error("运行 node scripts/install-skills.mjs 重新安装；旧副本和旧段落确认不再使用后手动删除。");
       return 1;
     }
-    console.log(`已核对 ${dirs.map(({ dir }) => dir).join("、")}：${skills.map(({ name }) => name).join("、")} 与模板一致。`);
+    const checked = [...skills.map(({ name }) => name), ...(agentsFile ? ["Codex 全局规则"] : [])];
+    console.log(`已核对 ${dirs.map(({ dir }) => dir).join("、")}：${checked.join("、")} 与模板一致。`);
     return 0;
   }
 
   const dryRun = argv.includes("--dry-run");
-  for (const file of installSkills(skills, dirs, { dryRun })) console.log(`${dryRun ? "将写入" : "已写入"} ${file}`);
-  if (!dryRun) console.log("新开一个对话后生效；运行 --check 核对。");
+  const verb = dryRun ? "将写入" : "已写入";
+  for (const file of installSkills(skills, dirs, { dryRun })) console.log(`${verb} ${file}`);
+  if (agentsFile) {
+    if (!dryRun) {
+      mkdirSync(path.dirname(agentsFile), { recursive: true });
+      writeFileSync(agentsFile, upsertCodexRule(agentsText, values, rule));
+    }
+    console.log(`${verb} ${agentsFile} 中的 ${site.slug} 段落`);
+  }
+  if (!dryRun) console.log("新开一个对话后生效；运行 --check 核对。Cursor 的 User Rule 按 README 另行添加。");
   return 0;
 }
 

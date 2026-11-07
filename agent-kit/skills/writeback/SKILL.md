@@ -20,7 +20,7 @@ description: >-
 
 ## 步骤
 
-1. 用 `{{QUERY}} find <关键词>` 找到这件事唯一的维护页面。已有页面就改它，不另起重复页面；拿不准归属时先问用户。
+1. 先同步另一台电脑写回的内容：`git -C "{{REPO_DIR}}" pull --ff-only`。失败时停下，告诉用户原因，不要强行覆盖。然后用 `{{QUERY}} find <关键词>` 找到这件事唯一的维护页面。已有页面就改它，不另起重复页面；拿不准归属时先问用户。
 2. 正文只写现状：直接改正文，不在末尾追加流水账。被取代的旧做法移进页尾的 `<div data-history>` 折叠区，或者整页标为 `status: deprecated` 并填写 `supersededBy`。
 3. 新页面写 `.md`，页面头必须有 `type`、`title`、一句完整的 `description`、`tags` 和 `generated`（见下一步），需要时补 `aliases`。常用类型及复核期限：{{REVIEW_DAYS}}。首页和分区首页用 `index.mdx`、`type: Overview`；不要用 `index.md`、`log.md` 作文件名。
 4. 新建页面或每次实质改动后，用下面的命令生成 `generated`，写进页面头（已有就替换原来那一行）：
@@ -38,7 +38,14 @@ description: >-
    原来已有核验记录时，把 `verified` 改成列表并追加这一条，`stale_after` 用新算出的值。
 6. 有据可查的说法写进 `sources`（每条必须有 `resource`）；要标注单句出处时，用 `[^id]` 脚注对应 `sources` 里的 `id`。
 7. 运行 `{{CHECK}}`，有错误就修到通过。
-8. 在仓库里只暂存本次改动的文件（`git add -- <文件>`）并提交，提交信息写清改了什么。是否推送按 `AGENTS.md` 的约定；没有约定时先问用户。
+8. 在仓库里只暂存本次改动的文件（`git add -- <文件>`）并提交，提交信息写清改了什么。然后按 `AGENTS.md` 的推送约定同步出去（模板默认提交后直接推送）：
+
+   ```text
+   git -C "{{REPO_DIR}}" pull --rebase
+   git -C "{{REPO_DIR}}" push
+   ```
+
+   有冲突或推送失败时停下告诉用户，不要强推。另一台电脑要靠这一步才能看到改动。
 
 `<作者>` 和 `<核验者>` 的写法：你自己写的或核对的，写 `<工具>/<模型>`，例如 `cursor-agent/claude-opus-5.5`；用户亲自写的或确认的，写 `human:{{OWNER}}`；自动流程写 `process:<名称>`。用户没有亲自确认时，不要替用户写 `human:`。
 
